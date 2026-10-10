@@ -14,14 +14,27 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
     bin/      reindex / search / new-case
     index/    cases.sqlite（.gitignore，可重建）
 
-## 快速开始
+## 使用
 
-    node bin/reindex.mjs                            # 重建索引
-    node bin/search.mjs 布局 溢出                   # 关键词检索（默认 AND）
-    node bin/search.mjs 小屏 --area layout --json   # 结构化过滤 + JSON 输出
-    node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout
+入库（人工，4 步）：
 
-要求 Node 24 首选；22.5–23 会自动以 `--experimental-sqlite` 回退（macOS 默认 shell 可能是 22，`nvm use 24` 即可）。
+    node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp
+    #    编辑生成的文件：填 现象 / 定位 / 修复 / 复盘
+    node bin/reindex.mjs
+    git add -A && git commit -m "case: 某弹窗深色模式不可见" && git push
+
+开工前检索（人或 agent）：
+
+    node bin/search.mjs 深色模式 弹窗                 # 关键词（默认 AND）
+    node bin/search.mjs 弹窗 --area layout --json     # 结构化过滤 + JSON（agent 用）
+    node bin/search.mjs 落地页 --tag 小屏 --limit 20  # 标签过滤 + 限量
+
+新机器 / 新会话：
+
+    git clone git@github.com:zjyzhj/autobuya-memory.git ~/autobuya-memory
+    cd ~/autobuya-memory && node bin/reindex.mjs
+
+环境：Node 24 首选；22.5–23 会自动以 `--experimental-sqlite` 回退（macOS 默认 shell 可能是 22，`nvm use 24` 即可）。
 
 ## 集成契约
 
