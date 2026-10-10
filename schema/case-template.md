@@ -6,6 +6,7 @@ platform: ios       # ios | flutter | macos | tooling
 status: open        # open | fixed | rule-promoted
 title: 一句话标题
 symptom: ""         # 一句话症状（审查/用户可见的表现）
+fix: ""             # 一句话修复（有则填，供「同问题→修复」检索展示）
 error_signatures: []   # 原文错误串、错误码、日志片段
 tags: []               # 自由标签，如 中文检索、小屏、弹窗
 ---
@@ -19,4 +20,3 @@ tags: []               # 自由标签，如 中文检索、小屏、弹窗
 ## 修复
 
 ## 复盘（可迁移的规则）
-

@@ -112,6 +112,7 @@ export function loadCases() {
       status: String(meta.status || 'open'),
       title: String(meta.title || id),
       symptom: String(meta.symptom || ''),
+      fix: String(meta.fix || ''),
       error_signatures: Array.isArray(meta.error_signatures) ? meta.error_signatures : [],
       tags: Array.isArray(meta.tags) ? meta.tags : [],
       content: body

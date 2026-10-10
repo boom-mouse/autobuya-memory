@@ -16,18 +16,22 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 使用
 
-入库（人工，4 步）：
+入库（人工触发；生成时自动重建索引）：
 
-    node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp
-    #    编辑生成的文件：填 现象 / 定位 / 修复 / 复盘
-    node bin/reindex.mjs
+    node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp \
+      --text "审查发现：深色模式弹窗与背景同色，看不清"     # 原始记录写入「## 原始记录」
+    #    编辑生成的文件：填 现象 / 定位 / 修复 / 复盘（front-matter 的 fix 填一句话修复）
     git add -A && git commit -m "case: 某弹窗深色模式不可见" && git push
+
+    可选项：--commit 生成时自动 add/commit/push；--file <path> 或 --stdin 传入原始记录。
 
 开工前检索（人或 agent）：
 
     node bin/search.mjs 深色模式 弹窗                 # 关键词（默认 AND）
     node bin/search.mjs 弹窗 --area layout --json     # 结构化过滤 + JSON（agent 用）
     node bin/search.mjs 落地页 --tag 小屏 --limit 20  # 标签过滤 + 限量
+
+检索结果带 `修复:` 一行（front-matter `fix`），用于快速判断「是否同一个问题、当时怎么修」。
 
 新机器 / 新会话：
 
@@ -38,9 +42,8 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 集成契约
 
-- **写**：只有 Supervisor 单写。收尾（closeout）时从审查 receipt / worker 结果生成案例，`reindex` 后 commit + push。
-- **读**：Worker 只读调用 `node ~/autobuya-memory/bin/search.mjs --json <关键词>`；技能目录保持只读。
-- **降级**：检索或仓库不可用时按 degraded 记录并继续，绝不阻塞 Job。
+- **当前（人工触发）**：人主动触发入库（`new-case`）与检索（`search`）；不改交付技能、不接调度、不起服务。
+- **未来（接入自动化时）**：写由 Supervisor 在 closeout 单写（从审查 receipt 生成案例）；Worker 开工前只读检索；检索不可用按 degraded 记录，绝不阻塞 Job；技能目录保持只读。
 - **禁写区**：不放技能包（`~/.claude/skills`、`~/.codex/skills`、技能源码目录有 write guard + bundle hash 守卫），不放产品仓库（会随 push 进交付仓）。
 
 ## 检索实现说明（实测）

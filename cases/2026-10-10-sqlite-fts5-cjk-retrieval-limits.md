@@ -6,6 +6,7 @@ platform: tooling
 status: fixed
 title: SQLite FTS5 对中文检索的真实限制（决定案例库用子串评分起步）
 symptom: 案例库想用 FTS5 做中文检索；实测 2 字词（溢出/闪退）在 unicode61 与 trigram 分词下都查不到
+fix: 案例库检索改用子串评分（不用 FTS5 分词）；FTS5 留作规模升级选项
 error_signatures: ["no such module: fts5", "SQLITE_ERROR"]
 tags: [中文检索, fts5, sqlite, node]
 ---
@@ -29,4 +30,3 @@ tags: [中文检索, fts5, sqlite, node]
 ## 复盘
 
 **工具自检要用真实语言样本**：仅验证"FTS5 可用"会掩盖中文分词失效；判断检索方案前必须用实际查询词（含 2 字词）做端到端命中测试。
-

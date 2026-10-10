@@ -37,6 +37,7 @@ db.exec(`
     status TEXT NOT NULL DEFAULT 'open',
     title TEXT NOT NULL,
     symptom TEXT NOT NULL DEFAULT '',
+    fix TEXT NOT NULL DEFAULT '',
     error_signatures TEXT NOT NULL DEFAULT '[]',
     tags TEXT NOT NULL DEFAULT '[]',
     path TEXT NOT NULL,
@@ -44,7 +45,10 @@ db.exec(`
   );
 `);
 
-const insert = db.prepare('INSERT INTO cases VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+const insert = db.prepare(`
+  INSERT INTO cases (id, date, area, project, platform, status, title, symptom, fix, error_signatures, tags, path, content)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
 for (const c of cases) {
   insert.run(
     c.id,
@@ -55,6 +59,7 @@ for (const c of cases) {
     c.status,
     c.title,
     c.symptom,
+    c.fix,
     JSON.stringify(c.error_signatures),
     JSON.stringify(c.tags),
     c.path,

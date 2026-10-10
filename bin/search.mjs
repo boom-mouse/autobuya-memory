@@ -62,6 +62,7 @@ for (const row of filtered) {
     platform: row.platform,
     status: row.status,
     title: row.title,
+    fix: row.fix || '',
     path: row.path,
     score,
     snippet: snippetFor(row, opts.terms)
@@ -98,6 +99,7 @@ if (opts.json) {
     const meta = [h.date, h.status, h.project].filter(Boolean).join(', ');
     console.log(`\n${i + 1}. [${h.area}] ${h.title}  (${meta})`);
     console.log(`   ${h.path}  score=${h.score}`);
+    if (h.fix) console.log(`   修复: ${h.fix}`);
     if (h.snippet) console.log(`   ${h.snippet}`);
   });
 }

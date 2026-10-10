@@ -6,6 +6,7 @@ platform: tooling
 status: fixed
 title: 案例记忆库放置边界：技能包 / 产品仓库 / runtime root 都不可写
 symptom: 给改包流程沉淀审查发现时，记忆库放错位置会触发技能 bundle 守卫，或随交付仓外泄
+fix: 记忆库独立为 git 仓库（技能包外），Supervisor 同机单写、Worker 只读
 error_signatures: ["HOOK_INSTALLED_SKILL_WRITE_FORBIDDEN", "bundle hash mismatch"]
 tags: [记忆库, write-guard, runtime-root, retention]
 ---
@@ -30,4 +31,3 @@ tags: [记忆库, write-guard, runtime-root, retention]
 ## 复盘
 
 **知识库要放在"守卫之外、生命周期更长"的存储层**：技能包是可分发的代码层（hash 守卫 + 只读），runtime root 是可再生的运行态（retention 会清理），只有独立仓库能同时满足可写、可审计、跨机器。
-
