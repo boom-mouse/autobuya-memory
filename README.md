@@ -49,10 +49,10 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器 clone 后重建这两条软链。
 
-## 集成契约
+## 集成契约与边界（决定：不进入持续改包流程）
 
-- **当前（人工触发）**：人主动触发入库（`new-case`）与检索（`search`）；不改交付技能、不接调度、不起服务。
-- **未来（接入自动化时）**：写由 Supervisor 在 closeout 单写（从审查 receipt 生成案例）；Worker 开工前只读检索；检索不可用按 degraded 记录，绝不阻塞 Job；技能目录保持只读。
+- **只支持人工显式触发**：人触发入库（`new-case`）与检索（`search`）；不接调度、不起服务、不做自动沉淀/自动检索。
+- **不接入持续改包/产包流程**：不改 `autobuya-feishu-app-delivery`；不加 closeout 钩子、不加 worker 派发检索、不读写 Job/Worker 运行时状态；沉淀材料只来自用户当场提供的文字/文件，不主动去 runtime root 或 Job 产物取材。
 - **禁写区**：不放技能包（`~/.claude/skills`、`~/.codex/skills`、技能源码目录有 write guard + bundle hash 守卫），不放产品仓库（会随 push 进交付仓）。
 
 ## 检索实现说明（实测）
