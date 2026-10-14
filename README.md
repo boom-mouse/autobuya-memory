@@ -16,11 +16,11 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 使用
 
-入库（人工触发；生成时自动重建索引）：
+入库由 skill 触发时，用户只需说「沉淀这个问题」；当前会话模型会从对话、日志、代码或修复 diff 自动总结字段并落库。以下 CLI 供手动或调试使用（生成时自动重建索引）：
 
     node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp \
       --text "审查发现：深色模式弹窗与背景同色，看不清"     # 原始记录写入「## 原始记录」
-    #    编辑生成的文件：填 现象 / 定位 / 修复 / 复盘（front-matter 的 fix 填一句话修复）
+    #    生成后由当前会话模型自动补全 现象 / 定位 / 修复 / 复盘
     git add -A && git commit -m "case: 某弹窗深色模式不可见" && git push
 
     可选项：--commit 生成时自动 add/commit/push；--file <path> 或 --stdin 传入原始记录。
