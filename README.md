@@ -3,8 +3,8 @@
 AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、验收、改包过程中发现的 bug、问题与教训，沉淀成可检索的案例，供后续任务开工前检索、收尾时归档。
 
 - **事实源**：本仓库的 markdown 文件（可 audit、可 diff、可 review、可回滚）
-- **检索层**：`index/cases.sqlite`（派生文件，随时可重建，不入库）
-- **服务**：无。嵌入式 SQLite，零常驻进程，零第三方依赖（Node 24 内置 `node:sqlite`）
+- **检索层**：当前会话模型阅读案例；CLI 只做关键词辅助
+- **服务**：无。Git 仓库即后端，无需向量库、embedding API 或常驻进程
 
 ## 布局
 
@@ -27,16 +27,21 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 开工前检索（人或 agent）：
 
+    git clone --depth 1 https://github.com/zjyzhj/autobuya-memory.git /tmp/autobuya-memory
+    cd /tmp/autobuya-memory
+    # 由当前会话模型阅读 cases/*.md，判断是否同根因
+    # CLI 可辅助：node bin/search.mjs 深色模式 弹窗 --any
+
     node bin/search.mjs 深色模式 弹窗                 # 关键词（默认 AND）
     node bin/search.mjs 弹窗 --area layout --json     # 结构化过滤 + JSON（agent 用）
     node bin/search.mjs 落地页 --tag 小屏 --limit 20  # 标签过滤 + 限量
 
 检索结果带 `修复:` 一行（front-matter `fix`），用于快速判断「是否同一个问题、当时怎么修」。
 
-新机器 / 新会话：
+新机器 / 新会话：clone 后按需重建文本索引
 
-    git clone git@github.com:zjyzhj/autobuya-memory.git ~/autobuya-memory
-    cd ~/autobuya-memory && node bin/reindex.mjs
+    git clone --depth 1 https://github.com/zjyzhj/autobuya-memory.git /tmp/autobuya-memory
+    cd /tmp/autobuya-memory && node bin/reindex.mjs
 
 环境：Node 24 首选；22.5–23 会自动以 `--experimental-sqlite` 回退（macOS 默认 shell 可能是 22，`nvm use 24` 即可）。
 
@@ -44,10 +49,10 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 本仓库只放数据、CLI 与检索索引；skill 源码在独立私有仓库：
 
-- 数据/检索仓库：`zjyzhj/autobuya-memory`，本地 `~/autobuya-memory`
-- Skill 仓库：`zjyzhj/autobuya-memory-skill`，本地 `~/autobuya-memory-skill`
+- 数据/检索仓库：`zjyzhj/autobuya-memory`（Git 即后端）
+- Skill 仓库：`zjyzhj/autobuya-memory-skill`
 
-安装 skill 时软链到 skill 仓库根目录：
+安装 skill 时软链到 skill 仓库根目录；数据仓库不需要常驻本地：
 
     ln -sfn ~/autobuya-memory-skill ~/.codex/skills/autobuya-memory     # Codex
     ln -sfn ~/autobuya-memory-skill ~/.claude/skills/autobuya-memory    # Claude Code
@@ -68,4 +73,4 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 - FTS5 `unicode61` 把整句中文当作一个 token："溢出" 0 命中，整句才命中。
 - FTS5 `trigram` 仅 ≥3 字连续匹配："布局在" 命中，"溢出" 0 命中。
 
-2 字高频词（溢出/闪退/黑屏/卡死）是中文检索的分水岭。百级案例下子串扫描毫秒级且最稳；规模上来再叠 trigram / 真分词 / embedding，markdown 格式与 CLI 接口不变。
+2 字高频词（溢出/闪退/黑屏/卡死）是中文检索的分水岭。当前规模下子串扫描毫秒级且最稳；后续若需要更强检索，可由调用 skill 的会话模型直接阅读案例，而不需要引入向量服务。
