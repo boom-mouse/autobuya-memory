@@ -42,12 +42,12 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 作为 Skill 使用
 
-skill 源码在 autobuyA 技能集合：`assets/claude_templates/skills/autobuya-memory/`（与 `autobuya-feishu-app-delivery` 同级）；本仓只负责数据与 CLI。安装 = 软链到该目录（改集合即改 skill）：
+`skill/` 是本库的交互入口（SKILL.md）。安装 = 软链（改仓库即改 skill，无需重新安装）：
 
-    ln -sfn /Volumes/zjySD/StudioProjects/autobuyA/assets/claude_templates/skills/autobuya-memory ~/.codex/skills/autobuya-memory    # Codex
-    ln -sfn /Volumes/zjySD/StudioProjects/autobuyA/assets/claude_templates/skills/autobuya-memory ~/.claude/skills/autobuya-memory   # Claude Code
+    ln -sfn ~/autobuya-memory/skill ~/.codex/skills/autobuya-memory     # Codex
+    ln -sfn ~/autobuya-memory/skill ~/.claude/skills/autobuya-memory    # Claude Code
 
-新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器按本机实际路径重建软链。
+新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器 clone 后重建这两条软链。
 
 ## 集成契约与边界（决定：不进入持续改包流程）
 
