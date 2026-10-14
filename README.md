@@ -40,14 +40,19 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 环境：Node 24 首选；22.5–23 会自动以 `--experimental-sqlite` 回退（macOS 默认 shell 可能是 22，`nvm use 24` 即可）。
 
-## 作为 Skill 使用
+## 仓库边界：数据与 Skill 分离
 
-`skill/` 是本库的交互入口（SKILL.md）。安装 = 软链（改仓库即改 skill，无需重新安装）：
+本仓库只放数据、CLI 与检索索引；skill 源码在独立私有仓库：
 
-    ln -sfn ~/autobuya-memory/skill ~/.codex/skills/autobuya-memory     # Codex
-    ln -sfn ~/autobuya-memory/skill ~/.claude/skills/autobuya-memory    # Claude Code
+- 数据/检索仓库：`zjyzhj/autobuya-memory`，本地 `~/autobuya-memory`
+- Skill 仓库：`zjyzhj/autobuya-memory-skill`，本地 `~/autobuya-memory-skill`
 
-新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器 clone 后重建这两条软链。
+安装 skill 时软链到 skill 仓库根目录：
+
+    ln -sfn ~/autobuya-memory-skill ~/.codex/skills/autobuya-memory     # Codex
+    ln -sfn ~/autobuya-memory-skill ~/.claude/skills/autobuya-memory    # Claude Code
+
+新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器先 clone 两个仓库，再重建这两条软链。
 
 ## 集成契约与边界（决定：不进入持续改包流程）
 
