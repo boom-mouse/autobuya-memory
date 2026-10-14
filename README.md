@@ -1,71 +1,132 @@
 # autobuya-memory
 
-AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、验收、改包过程中发现的 bug、问题与教训，沉淀成可检索的案例，供后续任务开工前检索、收尾时归档。
+AutobuyA 交付（改包 / 产包）的案例记忆库：把人工审查、验收、改包过程中发现的 bug、问题与教训，沉淀成可检索案例，供后续任务开工前检索、收尾时归档。
 
-- **事实源**：本仓库的 markdown 文件（可 audit、可 diff、可 review、可回滚）
-- **检索层**：`index/cases.sqlite`（派生文件，随时可重建，不入库）
-- **服务**：无。嵌入式 SQLite，零常驻进程，零第三方依赖（Node 24 内置 `node:sqlite`）
+## 架构
+
+- 事实源：`cases/*.md`，推 GitHub。
+- 文本索引：`index/cases.sqlite`，派生、本地可重建、不入库。
+- 向量存储：Qdrant 或 pgvector，远程服务，不在本地常驻。
+- Embedding：OpenAI 兼容 `/embeddings`，默认 `text-embedding-3-small`。
+- 检索：关键词文本召回 + 向量召回，RRF 融合。
 
 ## 布局
 
-    cases/    一条案例一个文件，文件名即 id：YYYY-MM-DD-slug.md
-    rules/    从案例归纳出的稳定规则；高价值规则定期提升进技能 references/（走技能发版）
-    schema/   案例 schema 与模板
-    bin/      reindex / search / new-case
-    index/    cases.sqlite（.gitignore，可重建）
+```text
+cases/        案例 markdown，事实源
+rules/        稳定规则
+schema/       pgvector 建表 SQL
+bin/          reindex / new-case / sync-vectors / search
+index/        cases.sqlite（派生，gitignore）
+```
+
+## 安装
+
+```bash
+npm install
+```
+
+## 配置
+
+Qdrant：
+
+```bash
+export VECTOR_BACKEND=qdrant
+export QDRANT_URL=https://your-qdrant.example:6333
+export QDRANT_API_KEY=...
+export QDRANT_COLLECTION=autobuya_memory
+export OPENAI_API_KEY=...
+export EMBEDDING_MODEL=text-embedding-3-small
+```
+
+pgvector：
+
+```bash
+export VECTOR_BACKEND=pgvector
+export DATABASE_URL=postgres://user:pass@host:5432/db
+export PGVECTOR_TABLE=case_vectors
+export OPENAI_API_KEY=...
+export EMBEDDING_MODEL=text-embedding-3-small
+```
+
+pgvector 首次可用 `schema/vector.sql` 建表；脚本也会自动执行 `CREATE EXTENSION IF NOT EXISTS vector` 和 HNSW 索引。
 
 ## 使用
 
-入库（人工触发；生成时自动重建索引）：
+### 只查询（不下载案例内容）
 
-    node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp \
-      --text "审查发现：深色模式弹窗与背景同色，看不清"     # 原始记录写入「## 原始记录」
-    #    编辑生成的文件：填 现象 / 定位 / 修复 / 复盘（front-matter 的 fix 填一句话修复）
-    git add -A && git commit -m "case: 某弹窗深色模式不可见" && git push
+只拉脚本和 schema，不 clone `cases/`：
 
-    可选项：--commit 生成时自动 add/commit/push；--file <path> 或 --stdin 传入原始记录。
+```bash
+git clone --depth 1 --filter=blob:none --sparse \
+  https://github.com/zjyzhj/autobuya-memory.git /tmp/autobuya-memory
+cd /tmp/autobuya-memory
+git sparse-checkout set bin package.json package-lock.json schema
+npm ci
+```
 
-开工前检索（人或 agent）：
+检索：
 
-    node bin/search.mjs 深色模式 弹窗                 # 关键词（默认 AND）
-    node bin/search.mjs 弹窗 --area layout --json     # 结构化过滤 + JSON（agent 用）
-    node bin/search.mjs 落地页 --tag 小屏 --limit 20  # 标签过滤 + 限量
+```bash
+node bin/search.mjs 深色模式 弹窗
+node bin/search.mjs 弹窗 --area layout --json
+node bin/search.mjs 溢出 --tag 小屏 --limit 20
+```
 
-检索结果带 `修复:` 一行（front-matter `fix`），用于快速判断「是否同一个问题、当时怎么修」。
+读取命中案例的单个原文：
 
-新机器 / 新会话：
+```bash
+node bin/fetch-case.mjs cases/xxx.md
+```
 
-    git clone git@github.com:zjyzhj/autobuya-memory.git ~/autobuya-memory
-    cd ~/autobuya-memory && node bin/reindex.mjs
+### 写入（新增 / 修改案例）
 
-环境：Node 24 首选；22.5–23 会自动以 `--experimental-sqlite` 回退（macOS 默认 shell 可能是 22，`nvm use 24` 即可）。
+完整或稀疏包含 `cases/` 的 checkout：
 
-## 仓库边界：数据与 Skill 分离
+```bash
+git clone https://github.com/zjyzhj/autobuya-memory.git /tmp/autobuya-memory
+cd /tmp/autobuya-memory && npm ci
+```
 
-本仓库只放数据、CLI 与检索索引；skill 源码在独立私有仓库：
+文本索引：
 
-- 数据/检索仓库：`zjyzhj/autobuya-memory`，本地 `~/autobuya-memory`
-- Skill 仓库：`zjyzhj/autobuya-memory-skill`，本地 `~/autobuya-memory-skill`
+```bash
+node bin/reindex.mjs
+```
 
-安装 skill 时软链到 skill 仓库根目录：
+同步向量到 Qdrant/pgvector：
 
-    ln -sfn ~/autobuya-memory-skill ~/.codex/skills/autobuya-memory     # Codex
-    ln -sfn ~/autobuya-memory-skill ~/.claude/skills/autobuya-memory    # Claude Code
+```bash
+node bin/sync-vectors.mjs --all
+node bin/sync-vectors.mjs --file cases/xxx.md
+node bin/sync-vectors.mjs --since <commit>
+node bin/sync-vectors.mjs --dry-run --all
+```
 
-新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器先 clone 两个仓库，再重建这两条软链。
+GitHub push 后，仓库里的 `.github/workflows/sync-vectors.yml` 会在 GitHub Actions 上增量同步；使用方不需要全量 clone 案例库来更新向量。
 
-## 集成契约与边界（决定：不进入持续改包流程）
+新增案例：
 
-- **只支持人工显式触发**：人触发入库（`new-case`）与检索（`search`）；不接调度、不起服务、不做自动沉淀/自动检索。
-- **不接入持续改包/产包流程**：不改 `autobuya-feishu-app-delivery`；不加 closeout 钩子、不加 worker 派发检索、不读写 Job/Worker 运行时状态；沉淀材料只来自用户当场提供的文字/文件，不主动去 runtime root 或 Job 产物取材。
-- **禁写区**：不放技能包（`~/.claude/skills`、`~/.codex/skills`、技能源码目录有 write guard + bundle hash 守卫），不放产品仓库（会随 push 进交付仓）。
+```bash
+node bin/new-case.mjs \
+  --title "某弹窗深色模式不可见" \
+  --area layout \
+  --text "审查发现：深色模式弹窗与背景同色" \
+  --sync
+git add -A && git commit -m "case: ..." && git push
+```
 
-## 检索实现说明（实测）
+默认有向量服务就混合检索，`--text-only` 强制只走文本。
 
-起步用 SQLite 子串评分（title×5、tags/symptom/error_signatures×3、正文×1），不用 FTS5 分词。2026-10-10 实测（Node v24.14.1）：
+## 仓库边界
 
-- macOS 自带 `sqlite3` CLI 未编译 FTS5：`no such module: fts5`。
-- FTS5 `unicode61` 把整句中文当作一个 token："溢出" 0 命中，整句才命中。
-- FTS5 `trigram` 仅 ≥3 字连续匹配："布局在" 命中，"溢出" 0 命中。
+- Skill：独立仓库 `zjyzhj/autobuya-memory-skill`。
+- 案例/向量系统：本仓库 + Qdrant/pgvector 服务。
+- 向量存储不放在本地，也不需要本地常驻仓库；需要时按需 checkout 脚本，原始案例按命中路径单独拉取。
 
-2 字高频词（溢出/闪退/黑屏/卡死）是中文检索的分水岭。百级案例下子串扫描毫秒级且最稳；规模上来再叠 trigram / 真分词 / embedding，markdown 格式与 CLI 接口不变。
+## 契约
+
+- 只人工显式触发；不进入持续改包流程。
+- 一条案例 = 一个问题（症状 → 修复 → 可迁移规则）。
+- 写前 `git pull --rebase`；写完 push；同一时间一个写者。
+- 不写客户/个人敏感信息。

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -36,8 +37,6 @@ export function ensureSqliteNode() {
   process.exit(result.status ?? 1);
 }
 
-// Restricted front-matter parser: key: value, quoted strings, inline arrays
-// [a, b], and "- item" block lists. Deliberately no YAML dependency.
 export function parseFrontMatter(raw) {
   if (!raw.startsWith('---\n')) return { meta: {}, body: raw };
   const end = raw.indexOf('\n---', 4);
@@ -118,4 +117,19 @@ export function loadCases() {
       content: body
     };
   });
+}
+
+export function vectorTextForCase(c) {
+  return [
+    `title: ${c.title}`,
+    `symptom: ${c.symptom}`,
+    `fix: ${c.fix}`,
+    `tags: ${(c.tags || []).join(' ')}`,
+    `signatures: ${(c.error_signatures || []).join(' ')}`,
+    `body:\n${c.content || ''}`
+  ].join('\n').slice(0, 6000);
+}
+
+export function sha256Hex(text) {
+  return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex');
 }

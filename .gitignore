@@ -1,2 +1,8 @@
-index/
+index/cases.sqlite
+index/vectors.jsonl
+index/*.sqlite
+index/*.sqlite-*
+index/*.db
+index/*.tmp-*
+node_modules/
 .DS_Store
