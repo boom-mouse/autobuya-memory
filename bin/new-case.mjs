@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { CASES_DIR, ROOT, fail } from './lib.mjs';
 
 const USAGE =
-  '用法: node bin/new-case.mjs --title "一句话标题" --area <area> [--text|--file|--stdin] [--slug x] [--project x] [--platform x] [--status x] [--sync] [--commit]';
+  '用法: node bin/new-case.mjs --title "一句话标题" --area <area> [--text|--file|--stdin] [--slug x] [--project x] [--platform x] [--status x] [--commit]';
 
 const args = process.argv.slice(2);
 let title = '';
@@ -14,7 +14,6 @@ let slug = '';
 let project = '';
 let platform = '';
 let status = 'open';
-let sync = false;
 let rawText = '';
 let rawFile = '';
 let useStdin = false;
@@ -33,7 +32,6 @@ for (let i = 0; i < args.length; i += 1) {
   else if (arg === '--project') project = next();
   else if (arg === '--platform') platform = next();
   else if (arg === '--status') status = next();
-  else if (arg === '--sync') sync = true;
   else if (arg === '--text') rawText = next();
   else if (arg === '--file') rawFile = next();
   else if (arg === '--stdin') useStdin = true;
@@ -105,13 +103,6 @@ console.log(`created ${path.relative(ROOT, file)}`);
 const reindex = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], { stdio: 'inherit' });
 if (reindex.status !== 0) {
   console.warn('warn: 索引重建失败（案例文件已写入，可手动运行 node bin/reindex.mjs）');
-}
-
-if (sync) {
-  const syncResult = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'sync-vectors.mjs'), '--file', file], { stdio: 'inherit' });
-  if (syncResult.status !== 0) {
-    console.warn('warn: 向量同步失败（案例文件已写入，可配置向量服务后手动运行 node bin/sync-vectors.mjs --file <path>）');
-  }
 }
 
 if (commit) {
