@@ -36,7 +36,9 @@ function indexNeedsRebuild() {
 function openIndex() {
   if (indexNeedsRebuild()) {
     console.error('info: index 缺失或过期，先自动重建索引');
-    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], { stdio: 'inherit' });
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], {
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
     if (result.status !== 0) fail('索引重建失败，无法检索');
   }
   try {
@@ -44,7 +46,9 @@ function openIndex() {
     return db;
   } catch {
     console.error('info: index 无法打开，先自动重建索引');
-    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], { stdio: 'inherit' });
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], {
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
     if (result.status !== 0) fail('索引重建失败，无法检索');
     return new DatabaseSync(DB_PATH, { readOnly: true });
   }
