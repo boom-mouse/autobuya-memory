@@ -106,12 +106,17 @@ if (reindex.status !== 0) {
 }
 
 if (commit) {
-  for (const gitArgs of [['add', '-A'], ['commit', '-m', `case: ${title}`], ['push']]) {
+  for (const gitArgs of [
+    ['pull', '--rebase'],
+    ['add', '-A'],
+    ['commit', '-m', `case: ${title}`],
+    ['push']
+  ]) {
     const result = spawnSync('git', gitArgs, { cwd: ROOT, stdio: 'inherit' });
     if (result.status !== 0) fail(`git ${gitArgs.join(' ')} 失败（文件已写入 ${path.relative(ROOT, file)}）`);
   }
   console.log('committed & pushed');
 } else {
-  console.log(`编辑后提交: cd ${ROOT} && git add -A && git commit -m "case: ${title}" && git push`);
+  console.log(`编辑后提交: cd ${ROOT} && git pull --rebase && git add -A && git commit -m "case: ${title}" && git push`);
 }
 

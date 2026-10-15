@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-import { DB_PATH, ensureSqliteNode, fail } from './lib.mjs';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { DB_PATH, ROOT, ensureSqliteNode, fail, walkCases } from './lib.mjs';
 
 ensureSqliteNode();
 let DatabaseSync;
@@ -15,9 +18,42 @@ const USAGE =
 const opts = parseArgs(process.argv.slice(2));
 if (opts.terms.length === 0) fail(USAGE);
 
+function indexNeedsRebuild() {
+  if (!fs.existsSync(DB_PATH)) return true;
+  let indexMtime;
+  try {
+    indexMtime = fs.statSync(DB_PATH).mtimeMs;
+  } catch {
+    return true;
+  }
+  let newestCaseMtime = 0;
+  for (const file of walkCases()) {
+    newestCaseMtime = Math.max(newestCaseMtime, fs.statSync(file).mtimeMs);
+  }
+  return newestCaseMtime > indexMtime;
+}
+
+function openIndex() {
+  if (indexNeedsRebuild()) {
+    console.error('info: index 缺失或过期，先自动重建索引');
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], { stdio: 'inherit' });
+    if (result.status !== 0) fail('索引重建失败，无法检索');
+  }
+  try {
+    const db = new DatabaseSync(DB_PATH, { readOnly: true });
+    return db;
+  } catch {
+    console.error('info: index 无法打开，先自动重建索引');
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], { stdio: 'inherit' });
+    if (result.status !== 0) fail('索引重建失败，无法检索');
+    return new DatabaseSync(DB_PATH, { readOnly: true });
+  }
+}
+
+let db;
 let rows;
 try {
-  const db = new DatabaseSync(DB_PATH, { readOnly: true });
+  db = openIndex();
   rows = db.prepare('SELECT * FROM cases').all();
   db.close();
 } catch (error) {
@@ -163,7 +199,7 @@ function countOccurrences(haystack, needle) {
 }
 
 function snippetFor(row, terms) {
-  const sources = [row.symptom, row.content, row.title];
+  const sources = [row.title, row.symptom, row.content];
   for (const source of sources) {
     const text = String(source || '');
     if (!text) continue;

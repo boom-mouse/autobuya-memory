@@ -23,7 +23,7 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
     #    生成后由当前会话模型自动补全 现象 / 定位 / 修复 / 复盘
     git add -A && git commit -m "case: 某弹窗深色模式不可见" && git push
 
-    可选项：--commit 生成时自动 add/commit/push；--file <path> 或 --stdin 传入原始记录。
+    可选项：--commit 只适合快速留 open 骨架，会自动 pull --rebase / add / commit / push；已修复案例务必先补全文件再手动 git 提交。--file <path> 或 --stdin 传原始记录也可。
 
 开工前检索（人或 agent）：
 
@@ -38,7 +38,7 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 检索结果带 `修复:` 一行（front-matter `fix`），用于快速判断「是否同一个问题、当时怎么修」。
 
-新机器 / 新会话：clone 后按需重建文本索引
+新机器 / 新会话：clone 后 `search.mjs` 会按需自动重建缺失索引；也可手动重建
 
     git clone --depth 1 https://github.com/zjyzhj/autobuya-memory.git /tmp/autobuya-memory
     cd /tmp/autobuya-memory && node bin/reindex.mjs
