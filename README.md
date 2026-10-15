@@ -10,13 +10,15 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
     cases/    一条案例一个文件，文件名即 id：YYYY-MM-DD-slug.md
     rules/    从案例归纳出的稳定规则；高价值规则定期提升进技能 references/（走技能发版）
-    schema/   案例 schema 与模板
+    schema/   案例 schema、模板与入库验收规范
     bin/      reindex / search / new-case
     index/    cases.sqlite（.gitignore，可重建）
 
 ## 使用
 
 入库由 skill 触发时，用户只需说「沉淀这个问题」；当前会话模型会从对话、日志、代码或修复 diff 自动总结字段并落库。以下 CLI 供手动或调试使用（生成时自动重建索引）：
+
+入库前必须满足 `schema/acceptance.md` 的门槛与检索规范；`fix`、tags、标题不能只依赖项目名，案例要能独立阅读。
 
     node bin/new-case.mjs --title "某弹窗深色模式不可见" --area layout --project MyApp \
       --text "审查发现：深色模式弹窗与背景同色，看不清"     # 原始记录写入「## 原始记录」
