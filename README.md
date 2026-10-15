@@ -67,7 +67,7 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 检索实现说明（实测）
 
-起步用 SQLite 子串评分（title×5、tags/symptom/error_signatures×3、正文×1），不用 FTS5 分词。2026-10-10 实测（Node v24.14.1）：
+用 SQLite 子串评分（title×5、tags/symptom/error_signatures×3、正文×1）：reindex 预生成 `search_text`，查询在 SQLite 内完成过滤、打分，只把 top N 载入 JS，不用 FTS5 分词。2026-10-10 实测（Node v24.14.1）：
 
 - macOS 自带 `sqlite3` CLI 未编译 FTS5：`no such module: fts5`。
 - FTS5 `unicode61` 把整句中文当作一个 token："溢出" 0 命中，整句才命中。

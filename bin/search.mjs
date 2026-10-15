@@ -33,83 +33,118 @@ function indexNeedsRebuild() {
   return newestCaseMtime > indexMtime;
 }
 
-function openIndex() {
-  if (indexNeedsRebuild()) {
-    console.error('info: index 缺失或过期，先自动重建索引');
-    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], {
-      stdio: ['ignore', 'ignore', 'inherit']
-    });
-    if (result.status !== 0) fail('索引重建失败，无法检索');
-  }
-  try {
-    const db = new DatabaseSync(DB_PATH, { readOnly: true });
-    return db;
-  } catch {
-    console.error('info: index 无法打开，先自动重建索引');
-    const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], {
-      stdio: ['ignore', 'ignore', 'inherit']
-    });
-    if (result.status !== 0) fail('索引重建失败，无法检索');
-    return new DatabaseSync(DB_PATH, { readOnly: true });
-  }
-}
-
-let db;
-let rows;
-try {
-  db = openIndex();
-  rows = db.prepare('SELECT * FROM cases').all();
-  db.close();
-} catch (error) {
-  fail(`无法读取索引（先运行 node bin/reindex.mjs）：${error.message}`);
-}
-
-const filtered = rows.filter((row) => {
-  if (opts.area && row.area !== opts.area) return false;
-  if (opts.project && row.project !== opts.project) return false;
-  if (opts.status && row.status !== opts.status) return false;
-  if (opts.platform && row.platform !== opts.platform) return false;
-  if (opts.tag && !safeArray(row.tags).includes(opts.tag)) return false;
-  return true;
-});
-
-const hits = [];
-for (const row of filtered) {
-  const title = String(row.title || '');
-  const tags = safeArray(row.tags).join(' ');
-  const signature = `${row.symptom || ''} ${safeArray(row.error_signatures).join(' ')}`;
-  const content = String(row.content || '');
-  let score = 0;
-  let matched = 0;
-  for (const term of opts.terms) {
-    const n =
-      countOccurrences(title, term) * 5 +
-      countOccurrences(tags, term) * 3 +
-      countOccurrences(signature, term) * 3 +
-      countOccurrences(content, term);
-    if (n > 0) {
-      matched += 1;
-      score += n;
-    }
-  }
-  const ok = opts.any ? matched > 0 : matched === opts.terms.length;
-  if (!ok) continue;
-  hits.push({
-    id: row.id,
-    date: row.date,
-    area: row.area,
-    project: row.project,
-    platform: row.platform,
-    status: row.status,
-    title: row.title,
-    fix: row.fix || '',
-    path: row.path,
-    score,
-    snippet: snippetFor(row, opts.terms)
+function rebuildIndex() {
+  console.error('info: index 缺失、过期或 schema 过旧，先自动重建索引');
+  const result = spawnSync(process.execPath, [path.join(ROOT, 'bin', 'reindex.mjs')], {
+    stdio: ['ignore', 'ignore', 'inherit']
   });
+  if (result.status !== 0) fail('索引重建失败，无法检索');
 }
-hits.sort((a, b) => b.score - a.score || String(b.date).localeCompare(String(a.date)));
-const limited = hits.slice(0, opts.limit);
+
+function schemaOk(db) {
+  const row = db.prepare("SELECT COUNT(*) AS n FROM pragma_table_info('cases') WHERE name = 'search_text'").get();
+  return Number(row?.n ?? 0) === 1;
+}
+
+function openIndex() {
+  if (indexNeedsRebuild()) rebuildIndex();
+  let db;
+  try {
+    db = new DatabaseSync(DB_PATH, { readOnly: true });
+  } catch (error) {
+    fail(`无法读取索引（先运行 node bin/reindex.mjs）：${error.message}`);
+  }
+  if (!schemaOk(db)) {
+    db.close();
+    rebuildIndex();
+    db = new DatabaseSync(DB_PATH, { readOnly: true });
+  }
+  if (!schemaOk(db)) fail('索引 schema 异常，无法检索');
+  return db;
+}
+
+const db = openIndex();
+const where = [];
+const params = [];
+let nextIndex = 0;
+
+if (opts.area) {
+  where.push(`area = ?${++nextIndex}`);
+  params.push(opts.area);
+}
+if (opts.project) {
+  where.push(`project = ?${++nextIndex}`);
+  params.push(opts.project);
+}
+if (opts.status) {
+  where.push(`status = ?${++nextIndex}`);
+  params.push(opts.status);
+}
+if (opts.platform) {
+  where.push(`platform = ?${++nextIndex}`);
+  params.push(opts.platform);
+}
+if (opts.tag) {
+  where.push(`instr(tags, ?${++nextIndex}) > 0`);
+  params.push(JSON.stringify(opts.tag));
+}
+
+const termChecks = [];
+const normalizedTerms = [];
+for (const term of opts.terms) {
+  const normalized = String(term).toLowerCase();
+  if (!normalized) continue;
+  normalizedTerms.push(normalized);
+  const termIndex = ++nextIndex;
+  params.push(normalized);
+  termChecks.push(`instr(search_text, ?${termIndex}) > 0`);
+}
+if (termChecks.length > 0) {
+  where.push(`(${termChecks.join(opts.any ? ' OR ' : ' AND ')})`);
+}
+const whereParams = params.slice();
+const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+const scoreParts = [];
+for (const normalized of normalizedTerms) {
+  const instrIndex = ++nextIndex;
+  const replaceIndex = ++nextIndex;
+  const lengthIndex = ++nextIndex;
+  params.push(normalized, normalized, normalized);
+  scoreParts.push(
+    `(CASE WHEN instr(search_text, ?${instrIndex}) > 0 ` +
+      `THEN (length(search_text) - length(replace(search_text, ?${replaceIndex}, ''))) / length(?${lengthIndex}) ` +
+      'ELSE 0 END)'
+  );
+}
+
+const total = Number(
+  db.prepare(`SELECT COUNT(*) AS total FROM cases ${whereSql}`).get(...whereParams)?.total ?? 0
+);
+const limitIndex = ++nextIndex;
+params.push(opts.limit);
+const scoreSql = scoreParts.length > 0 ? scoreParts.join(' + ') : '0';
+const limited = db
+  .prepare(
+    `SELECT id, date, area, project, platform, status, title, symptom, fix, path, content, ${scoreSql} AS score ` +
+      `FROM cases ${whereSql} ORDER BY score DESC, date DESC, id LIMIT ?${limitIndex}`
+  )
+  .all(...params);
+db.close();
+
+const hits = limited.map((row) => ({
+  id: String(row.id),
+  date: String(row.date),
+  area: String(row.area),
+  project: String(row.project),
+  platform: String(row.platform),
+  status: String(row.status),
+  title: String(row.title),
+  fix: String(row.fix || ''),
+  path: String(row.path),
+  score: Number(row.score),
+  snippet: snippetFor(row, opts.terms)
+}));
 
 if (opts.json) {
   console.log(
@@ -123,8 +158,8 @@ if (opts.json) {
           platform: opts.platform,
           tag: opts.tag
         },
-        count: limited.length,
-        total: hits.length,
+        count: hits.length,
+        total,
         hits: limited
       },
       null,
@@ -134,7 +169,7 @@ if (opts.json) {
 } else if (limited.length === 0) {
   console.log('no hits');
 } else {
-  console.log(`${limited.length}/${hits.length} hit(s) · ${opts.terms.join(' ')}`);
+  console.log(`${hits.length}/${total} hit(s) · ${opts.terms.join(' ')}`);
   limited.forEach((h, i) => {
     const meta = [h.date, h.status, h.project].filter(Boolean).join(', ');
     console.log(`\n${i + 1}. [${h.area}] ${h.title}  (${meta})`);

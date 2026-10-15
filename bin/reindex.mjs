@@ -27,6 +27,7 @@ const tmpPath = `${DB_PATH}.tmp-${process.pid}`;
 fs.rmSync(tmpPath, { force: true });
 
 const db = new DatabaseSync(tmpPath);
+db.exec('PRAGMA synchronous=OFF');
 db.exec(`
   CREATE TABLE cases (
     id TEXT PRIMARY KEY,
@@ -41,33 +42,53 @@ db.exec(`
     error_signatures TEXT NOT NULL DEFAULT '[]',
     tags TEXT NOT NULL DEFAULT '[]',
     path TEXT NOT NULL,
-    content TEXT NOT NULL DEFAULT ''
+    content TEXT NOT NULL DEFAULT '',
+    search_text TEXT NOT NULL DEFAULT ''
+  );
+  CREATE TABLE meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
   );
 `);
+db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run('schema_version', '2');
 
 const insert = db.prepare(`
-  INSERT INTO cases (id, date, area, project, platform, status, title, symptom, fix, error_signatures, tags, path, content)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO cases (id, date, area, project, platform, status, title, symptom, fix, error_signatures, tags, path, content, search_text)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
-for (const c of cases) {
-  insert.run(
-    c.id,
-    c.date,
-    c.area,
-    c.project,
-    c.platform,
-    c.status,
-    c.title,
-    c.symptom,
-    c.fix,
-    JSON.stringify(c.error_signatures),
-    JSON.stringify(c.tags),
-    c.path,
-    c.content
-  );
+db.exec('BEGIN');
+try {
+  for (const c of cases) {
+    insert.run(
+      c.id,
+      c.date,
+      c.area,
+      c.project,
+      c.platform,
+      c.status,
+      c.title,
+      c.symptom,
+      c.fix,
+      JSON.stringify(c.error_signatures),
+      JSON.stringify(c.tags),
+      c.path,
+      c.content,
+      buildSearchText(c)
+    );
+  }
+  db.exec('COMMIT');
+} catch (error) {
+  db.exec('ROLLBACK');
+  throw error;
 }
 db.close();
 
 fs.rmSync(DB_PATH, { force: true });
 fs.renameSync(tmpPath, DB_PATH);
 console.log(`indexed ${cases.length} case(s) -> ${path.relative(process.cwd(), DB_PATH) || DB_PATH}`);
+
+function buildSearchText(c) {
+  const repeat = (value, count) => `${String(value || '').trim()} `.repeat(count).toLowerCase();
+  const signature = `${c.symptom || ''} ${c.error_signatures.join(' ')}`.trim();
+  return `${repeat(c.title, 5)}${repeat(c.tags.join(' '), 3)}${repeat(signature, 3)}${String(c.content || '').toLowerCase()}`;
+}
