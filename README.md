@@ -49,17 +49,19 @@ AutobuyA 交付（改包 / 产包）的**案例记忆库**：把人工审查、�
 
 ## 仓库边界：数据与 Skill 分离
 
-本仓库只放数据、CLI 与检索索引；skill 源码在独立私有仓库：
+本仓库只放数据、CLI 与检索索引；skill 模板源码在 autobuyA 仓库中：
 
 - 数据/检索仓库：`zjyzhj/autobuya-memory`（Git 即后端）
-- Skill 仓库：`zjyzhj/autobuya-memory-skill`
+- Skill 模板目录：`autobuyA/assets/claude_templates/skills/autobuya-memory`
 
-安装 skill 时软链到 skill 仓库根目录；数据仓库不需要常驻本地：
+部署 skill 时把该目录复制到目标 skill 目录，不依赖软链；数据仓库不需要常驻本地：
 
-    ln -sfn ~/autobuya-memory-skill ~/.codex/skills/autobuya-memory     # Codex
-    ln -sfn ~/autobuya-memory-skill ~/.claude/skills/autobuya-memory    # Claude Code
+    # 示例：Codex
+    cp -R /path/to/autobuyA/assets/claude_templates/skills/autobuya-memory ~/.codex/skills/autobuya-memory
+    # 示例：Claude Code
+    cp -R /path/to/autobuyA/assets/claude_templates/skills/autobuya-memory ~/.claude/skills/autobuya-memory
 
-新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器先 clone 两个仓库，再重建这两条软链。
+新会话生效。之后说「沉淀到记忆库」「查一下以前有没有类似问题」即可触发；换机器先复制 skill 模板，再按需 clone 案例仓库。
 
 ## 集成契约与边界（决定：不进入持续改包流程）
 
